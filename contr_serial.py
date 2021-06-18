@@ -47,7 +47,7 @@ print(joystick1.get_numballs())
 print(joystick1.get_numbuttons())
 print(joystick1.get_numhats())
 axis1=0
-clock.tick(60)
+clock.tick(5)
 while 1:
     pygame.event.get()
     screen.fill(WHITE)
@@ -83,28 +83,14 @@ while 1:
 
     textPrint.unindent()
 
+    axis1 = joystick1.get_axis(0)*127+127
+    arduino.write(bytes([int(max(min(axis1,255),0))]))
     pygame.display.flip()
-    if joystick1.get_axis(0)>axis1:
-        axis1 = (axis1+0.05*abs(joystick1.get_axis(0) ))
-    if joystick1.get_axis(0)<axis1:
-        axis1 = (axis1-0.05*abs(joystick1.get_axis(0) ))
     
-        
     print(max(min(axis1*127+127,255),0))
     print(' ')
     print(bytes([int(max(min(axis1*127+127,255),0)/6.5)]))
     
-    #arduino.write(bytes([int(max(min(axis1*127+127,155),100))]))
-    if ang ==20:
-        inc = -0.1
-    if ang ==-20:
-        inc = 0.1
-    
-    arduino.write(bytes([int(max(min(ang,20),-20))]))
-    ang = ang + inc
-    ang = max(min(ang,20),-20)
-    count=count+1
-    print([int(max(min(ang,20),-20))])
 
     clock.tick(5)
     

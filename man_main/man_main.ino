@@ -76,15 +76,13 @@ if (mcp2515_check_message())
   int i =0;
   
 if(Serial.available()>0){
-  req_str_angle = (Serial.read());
+  
+  cont_out = ((Serial.read())-127)/127.0;
   cont=1;
 }
 if(start1==0){
-cont_out = PID(float(req_str_angle),float(str_angle));
 }
-if(cont==1){
-  if(start1 == 1){req_str_angle0 = req_str_angle;start1 = 0;}
-  
+if(cont==1){  
 }
 
 float k =1;
@@ -98,8 +96,6 @@ analogWrite(CANL_pin,int(baseV-diff*cont_out));
 //  Serial.print(int(baseV+diff*cont_out));
 //  Serial.print("   Low  ");
 //  Serial.print(int(baseV-diff*cont_out));
-//  Serial.print("   reqang ");
-//  Serial.print(req_str_angle);
 //  Serial.print("   ang ");
 //  Serial.print(str_angle);
 //  Serial.print("   out ");
@@ -122,22 +118,3 @@ analogWrite(CANL_pin,int(baseV-diff*cont_out));
 int clamp1(int a){if(a < -21){a=-21;}if(a > 20){a=20;} return a;}
 float clamp2(float a){if(a > 0.95){a=0.95;}if(a < -0){a=0;} return a;}
 float clamp3(float a){if(a > 0){a=0;}if(a < -0.95){a=-0.95;} return a;}
-float PID(float reqang,float ang){
-  float Ip=0;
-  float out=0;             
-  float P = 0;
-  
-  if(ang-reqang>0){P=clamp2((ang-reqang-2)*0.2);Ip=6.0/10000;}else{if(ang-reqang<0){P=clamp3((ang-reqang+2)*0.2);Ip=-6.0/10000;}else{P=0;Ip=0;}}
-  
-  I=I+Ip;
-  
-  if(abs(int(ang-reqang))>4){I=0;} //zero integral part to insure no overshoot in large angle differences
-  
-    
-  oldmillis=millis();str_angle0=ang;req_str_angle0=reqang;//set the variables for the next run
-  out = P+I;
-  if( out>1){return 1;}else{if(out<-1){return -1;}else{return out;}}
-    
-  
-
-}
