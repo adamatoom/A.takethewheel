@@ -4,26 +4,28 @@
 #include <global.h>
 #include <mcp2515.h>
 #include <mcp2515_defs.h>
+#include <memory.h>
 
 using namespace std;
 int diff = 26;
+signed char sertmp=0;
 int baseV = 170;
 float cont_out=0;
-unsigned int CANL_pin=3;
-unsigned int CANH_pin=5;
-unsigned int manual_pin = 7;
-unsigned int low_read_pin = A0;
-unsigned int high_read_pin=A1;
+char CANL_pin=3;
+char CANH_pin=5;
+char manual_pin = 7;
+char low_read_pin = A0;
+char high_read_pin= A1;
 char nb=0;
 float I = 0;
 float D1 = 0;
 byte start = 1;
 byte start1 = 1;
 int contr;
-signed char str_angle=0;
-signed char req_str_angle=0;
-signed char str_angle0=0;
-signed char req_str_angle0=0;
+signed short int str_angle=0;
+signed short int req_str_angle=0;
+signed short int str_angle0=0;
+signed short int req_str_angle0=0;
 byte wasmanual = 0;
 int count = 0;
 unsigned long startMillis;  
@@ -32,7 +34,8 @@ unsigned long oldmillis;
 const unsigned long period = 1000;  //the value is a number of milliseconds
 int newvoltageL = 60;
 int newvoltageH = 190;
-
+char c=0;
+char[4] buff=0;
 
 void setup() {
   //setting up pins
@@ -53,7 +56,7 @@ void setup() {
     
   delay(1000);
   startMillis = millis();  //initial start time
-  startMillis = millis();  //initial start time
+  
 }
 
 
@@ -67,25 +70,43 @@ if (mcp2515_check_message())
     {
         if(message.id == 0x2B0)  //uncomment when you want to filter
              {
-                str_angle = message.data[1];
+		char buff[2] = {message.data[0],message.data[1]};
+		memcpy(&str_angle,buff,sizeof(buff));
+                //str_angle = message.data[1];
                 if(start == 1){str_angle0 = str_angle;start = 0;}
              }
     }}
   byte count = 0;
-  byte cont = 0;
   int i =0;
-  
+  buff = 0;
 if(Serial.available()>0){
-  req_str_angle = (Serial.read());
-  cont=1;
+  char condition = Serial.read();
+  if(condition =='t'){
+    sertmp = Serial.read();
+    cont_out = sertmp/127.0;
+    start1=1;
+  }else{
+    if(condition =='a'){
+      c = Serial.read();
+      while(c != 'e'){
+        buff[count] = c;
+        c = Serial.read();
+        count = count + 1;
+      }
+      req_str_angle = atof(buff);  
+
+      start1=0;
+    }
+  }  
+  
 }
-if(start1==0){
+
+if(start1==0){ //making sure the the variables of the previous angles and required angles are correctly set before applying PID
 cont_out = PID(float(req_str_angle),float(str_angle));
 }
-if(cont==1){
-  if(start1 == 1){req_str_angle0 = req_str_angle;start1 = 0;}
-  
-}
+
+if(start1 == 1){req_str_angle0 = req_str_angle;start1 = 0;}
+ 
 
 float k =1;
 
@@ -127,7 +148,6 @@ float PID(float reqang,float ang){
   float out=0;             
   float P = 0;
   
-  if(ang-reqang>0){P=clamp2((ang-reqang-2)*0.2);Ip=6.0/10000;}else{if(ang-reqang<0){P=clamp3((ang-reqang+2)*0.2);Ip=-6.0/10000;}else{P=0;Ip=0;}}
   
   I=I+Ip;
   
