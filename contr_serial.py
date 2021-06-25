@@ -83,8 +83,8 @@ while 1:
 
     textPrint.unindent()
 
-    axis1 = joystick1.get_axis(0)*127+127
-    arduino.write(bytes([int(max(min(axis1,255),0))]))
+    axis1 = joystick1.get_axis(0)*127
+    arduino.write(['t'.encode('utf-8'),int(axis1).to_bytes(1,byteorder = 'big', signed = True)])
     pygame.display.flip()
     
     print(max(min(axis1*127+127,255),0))

@@ -35,7 +35,8 @@ const unsigned long period = 1000;  //the value is a number of milliseconds
 int newvoltageL = 60;
 int newvoltageH = 190;
 char c=0;
-char[4] buff=0;
+char[4] buff  = 0;
+char[4] buff1 = 0;
 
 void setup() {
   //setting up pins
@@ -78,7 +79,7 @@ if (mcp2515_check_message())
     }}
   byte count = 0;
   int i =0;
-  buff = 0;
+  buff1 = 0;
 if(Serial.available()>0){
   char condition = Serial.read();
   if(condition =='t'){
@@ -87,14 +88,18 @@ if(Serial.available()>0){
     start1=1;
   }else{
     if(condition =='a'){
-      c = Serial.read();
-      while(c != 'e'){
-        buff[count] = c;
-        c = Serial.read();
-        count = count + 1;
+      //c = Serial.read();
+      //while(c != 'e'){
+      //  buff[count] = c;
+      //  c = Serial.read();
+      //  count = count + 1;
+      //}
+      //req_str_angle = atof(buff);  
+      for(i=0;i<2;i++){
+        buff1[i] = Serial.read();
       }
-      req_str_angle = atof(buff);  
-
+      memcpy(&req_str_angle,buff1,sizeof(buff1));
+     
       start1=0;
     }
   }  

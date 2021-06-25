@@ -11,14 +11,15 @@ inc = 1
 while 1:
 
     
-    ang = max(min(ang,20),-20)
-    arduino.write(bytes([int(max(min(ang,20),-20))]))
+    ang = max(min(ang,200),-200)
+    arduino.write('a'.encode('utf-8'))
+    arduino.write(ang.to_bytes(2,byteorder = 'big', signed = True))
     # arduino.write(bytes([0]))
-    print([int(max(min(ang,20),-20))])
+    print([int(max(min(ang,200),-200))])
     ang = ang + inc
-    if ang ==20:
+    if ang ==200:
         inc = -1
-    if ang ==-20:
+    if ang ==-200:
         inc = 1
     time.sleep(1)
 
