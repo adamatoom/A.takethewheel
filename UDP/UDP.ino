@@ -20,17 +20,17 @@ byte type = 0;
 byte count;
 int ang[5] = {0, 0, 0, 0, 0};
 int rang[5] = {0, 0, 0, 0, 0};
-float p = 7.0 / 200.0;
-float i = 3.0 / 200.0;
+float p = 7.0 / 400.0;
+float i = 3.0 / 2000.0;
 float d = 0;
 float P = 0;
 float I = 0;
 float D = 0;
 char reply[] = "Packet received!";
 int counter = 0;
-byte str = 127;
+int str = 127;
 byte output = 127;
-byte str0 = 127;
+int str0 = 127;
 void setup()
 {
   // Set your Static IP address
@@ -100,7 +100,7 @@ void loop()
       type = packet[0];
       switch (type)
       {
-      case 0:
+      case (byte)0:
         //code to be executed;
         rang[3] = rang[4];
         rang[2] = rang[3];
@@ -109,17 +109,22 @@ void loop()
         rang[4] = (packet[2] | packet[1] << 8) - 4000;
         Serial.println("rang");
         // Serial.println(rang[4]);
-      case 1:
+        break;
+      case (byte)1:
         //code to be executed
         output = packet[1];
         // Serial.println((int)output);
         Serial.println("torque");
-      case 3:
+        break;
+      case (byte)3:
         //code to be executed
         p = float(packet[1]) / 200.0;
         i = float(packet[2]) / 200.0;
         d = float(packet[3]) / 2000.0;
         Serial.println("PID");
+        break;
+      default:
+        Serial.println("Invalid Type");
         //code to be executed if all cases are not matched
       }
       //    str = packet[1];
@@ -152,17 +157,22 @@ void loop()
     ang[1] = ang[2];
     ang[0] = ang[1];
     ang[4] = buff[0] << 8 | buff[1];
-    if (counter % 10){
-        Serial.println("rec rang");
-        Serial.println(ang[4]);
+    if (counter % 10)
+    {
+      Serial.println("rec rang");
+      Serial.println(ang[4]);
     }
   }
   if (type == 0)
   {
-    output = (byte)clamp((float)0, (float)255, PID() +(float)127);
+    output = (byte)clamp((float)0, (float)255, PID() + (float)127);
   }
-  str = clamp(str0 - 10, str0 + 10, output);
-  Serial1.write(str);
+  if (type == 0 || type == 1)
+  {
+    str = (int)clamp(str0 - 5, str0 + 5, (int)output);
+  }
+  Serial1.write((byte)str);
+  Serial.println((int)str);
   str0 = str;
 }
 
@@ -178,7 +188,18 @@ byte clamp(byte lower, byte higher, byte input)
   }
   return input;
 }
-
+int clamp(int lower, int higher, int input)
+{
+  if (input < lower)
+  {
+    input = lower;
+  }
+  if (input > higher)
+  {
+    input = higher;
+  }
+  return input;
+}
 float clamp(float lower, float higher, float input)
 {
   if (input < lower)
@@ -193,9 +214,9 @@ float clamp(float lower, float higher, float input)
 }
 float PID()
 {
-  P = clamp(-100.0, 100.0, p * ((float)ang[4] - (float)rang[4]));
-  I = clamp(-27.0, 27.0, I + (((float)ang[4] - (float)rang[4]) + (float)ang[0] - (float)rang[0]) * i);
-  D = clamp(-30.0, 30.0, (((float)ang[4] - (float)rang[4]) - ((float)ang[0] - (float)rang[0])) * d);
+  P = clamp(-100.0, 100.0, p * ((float)rang[4] - (float)ang[4]));
+  I = clamp(-27.0, 27.0, I + (((float)rang[4] - (float)ang[4]) + (float)rang[0] - (float)ang[0]) * i);
+  D = clamp(-30.0, 30.0, (((float)rang[4] - (float)ang[4]) - ((float)rang[0] - (float)ang[0])) * d);
 
   return P + I + D;
 }
