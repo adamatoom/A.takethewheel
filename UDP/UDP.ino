@@ -20,11 +20,14 @@ byte type = 0;
 byte count;
 int ang[5] = {0, 0, 0, 0, 0};
 int rang[5] = {0, 0, 0, 0, 0};
+float p = 7.0 / 200.0;
+float i = 3.0 / 200.0;
+float d = 0;
 float P = 0;
 float I = 0;
 float D = 0;
 char reply[] = "Packet received!";
-
+int counter = 0;
 byte str = 127;
 byte output = 127;
 byte str0 = 127;
@@ -40,7 +43,8 @@ void setup()
   Serial.begin(115200);
   Serial1.begin(115200);
   mySerial.begin(38400, SWSERIAL_8N1, MYPORT_RX, MYPORT_TX, false);
-  if(!mySerial){
+  if (!mySerial)
+  {
     Serial.println("NO");
   }
   //
@@ -65,10 +69,10 @@ void setup()
     //    Serial.print(".");
   }
 
-//  Connected to WiFi
-   Serial.println();
-   Serial.print("Connected! IP address: ");
-   Serial.println(WiFi.localIP());
+  //  Connected to WiFi
+  Serial.println();
+  Serial.print("Connected! IP address: ");
+  Serial.println(WiFi.localIP());
 
   // Begin listening to UDP port
   UDP.begin(UDP_PORT);
@@ -91,31 +95,38 @@ void loop()
     int len = UDP.read(packet, 255);
     if (len > 0)
     {
-    Serial.println("UDP2");
+      Serial.println("UDP2");
       //      packet[len] = '\0';
       type = packet[0];
-      if (type == 0)
+      switch (type)
       {
+      case 0:
+        //code to be executed;
         rang[3] = rang[4];
         rang[2] = rang[3];
         rang[1] = rang[2];
         rang[0] = rang[1];
         rang[4] = (packet[2] | packet[1] << 8) - 4000;
-        Serial.println("ang");
-        Serial.println(rang[4]);
-      }
-      else
-      {
+        Serial.println("rang");
+        // Serial.println(rang[4]);
+      case 1:
+        //code to be executed
         output = packet[1];
-    Serial.println((int)output);
-        //    Serial.println( output );
+        // Serial.println((int)output);
+        Serial.println("torque");
+      case 3:
+        //code to be executed
+        p = float(packet[1]) / 200.0;
+        i = float(packet[2]) / 200.0;
+        d = float(packet[3]) / 2000.0;
+        Serial.println("PID");
+        //code to be executed if all cases are not matched
       }
       //    str = packet[1];
     }
     //    Serial.print("Packet received: ");
     //    for (int i=0;i<len;i++){
 
-    analogWrite(4, str);
     //    }
 
     //    UDP.beginPacket(UDP.remoteIP(), UDP.remotePort());
@@ -123,7 +134,7 @@ void loop()
     //    UDP.endPacket();
   }
   count = 0;
-//    Serial.println("Yes");
+  //    Serial.println("Yes");
   if (mySerial.available() > 1)
   {
     //      buff[count] = mySerial.read();
@@ -141,15 +152,18 @@ void loop()
     ang[1] = ang[2];
     ang[0] = ang[1];
     ang[4] = buff[0] << 8 | buff[1];
+    if (counter % 10){
+        Serial.println("rec rang");
+        Serial.println(ang[4]);
+    }
   }
   if (type == 0)
   {
-    output = (byte)clamp(0, 255, PID(0.035, 0.0015, 0.0));
+    output = (byte)clamp((float)0, (float)255, PID() +(float)127);
   }
   str = clamp(str0 - 10, str0 + 10, output);
   Serial1.write(str);
   str0 = str;
-
 }
 
 byte clamp(byte lower, byte higher, byte input)
@@ -177,7 +191,7 @@ float clamp(float lower, float higher, float input)
   }
   return input;
 }
-float PID(float p, float i, float d)
+float PID()
 {
   P = clamp(-100.0, 100.0, p * ((float)ang[4] - (float)rang[4]));
   I = clamp(-27.0, 27.0, I + (((float)ang[4] - (float)rang[4]) + (float)ang[0] - (float)rang[0]) * i);
