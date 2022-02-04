@@ -1,6 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <SoftwareSerial.h>
+#include <PID_v1.h>
 
 #define MYPORT_TX 14
 #define MYPORT_RX 12
@@ -21,16 +22,22 @@ byte count;
 int ang[5] = {0, 0, 0, 0, 0};
 int rang[5] = {0, 0, 0, 0, 0};
 float p = 7.0 / 400.0;
-float i = 3.0 / 2000.0;
+float i = 3.0 / 200000.0;
 float d = 0;
 float P = 0;
+unsigned long time1  = millis();
 float I = 0;
 float D = 0;
+float dt = 1000000;
 char reply[] = "Packet received!";
 int counter = 0;
 int str = 127;
 byte output = 127;
 int str0 = 127;
+double Setpoint, Input, Output;
+byte pid = 0;
+
+PID myPID(&Input, &Output, &Setpoint, 7.0 / 400.0, 3.0 / 2000.0, 0, DIRECT);
 void setup()
 {
   // Set your Static IP address
@@ -108,6 +115,9 @@ void loop()
         rang[0] = rang[1];
         rang[4] = (packet[2] | packet[1] << 8) - 4000;
         Serial.println("rang");
+        Setpoint = (double)rang[4];
+        pid = 1;
+        
         // Serial.println(rang[4]);
         break;
       case (byte)1:
@@ -115,11 +125,12 @@ void loop()
         output = packet[1];
         // Serial.println((int)output);
         Serial.println("torque");
+        pid = 0;
         break;
       case (byte)3:
         //code to be executed
-        p = float(packet[1]) / 200.0;
-        i = float(packet[2]) / 200.0;
+        p = float(packet[1]) / 400.0;
+        i = float(packet[2]) / 200000.0;
         d = float(packet[3]) / 2000.0;
         Serial.println("PID");
         break;
@@ -161,6 +172,7 @@ void loop()
     {
       Serial.println("rec rang");
       Serial.println(ang[4]);
+      Setpoint = (double)ang[4];
     }
   }
   if (type == 0)
@@ -214,9 +226,10 @@ float clamp(float lower, float higher, float input)
 }
 float PID()
 {
+  dt = (float)(millis() - time1);
   P = clamp(-100.0, 100.0, p * ((float)rang[4] - (float)ang[4]));
-  I = clamp(-27.0, 27.0, I + (((float)rang[4] - (float)ang[4]) + (float)rang[0] - (float)ang[0]) * i);
-  D = clamp(-30.0, 30.0, (((float)rang[4] - (float)ang[4]) - ((float)rang[0] - (float)ang[0])) * d);
+  I = clamp(-27.0, 27.0, I + (((float)rang[4] - (float)ang[4]) + (float)rang[0] - (float)ang[0]) * i * dt / 2);
+  D = clamp(-30.0, 30.0, (((float)rang[4] - (float)ang[4]) - ((float)rang[0] - (float)ang[0])) * d / dt);
 
   return P + I + D;
 }
