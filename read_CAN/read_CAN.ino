@@ -47,7 +47,7 @@ signed int combined = 5000;
 void setup()
 {
   Serial.begin(115200);
-  mySerial.begin(38400);
+  mySerial.begin(9600);
   Serial.println("CAN-Bus Demo");
 
   if (Canbus.init(CANSPEED_500)) /* Initialise MCP2515 CAN controller at the specified speed */
@@ -98,27 +98,31 @@ void loop()
   if (count11 % 10 == 0)
   {
     mcp2515_send_message(&message);
-    count11++;
+    
   }
+  count11++;
   if (mcp2515_get_message(&message))
   {
     if ((message.id == 0x2b0)) // Check message is the reply and its the right PID
     {
       /* Details from http://en.wikipedia.org/wiki/OBD-II_PIDs */
       combined = message.data[1] << 8 | message.data[0];
-      combined = combined + 5000;
+      combined = combined + 6000;
       buff[1] = combined >> 8 & 0xff;
       buff[0] = combined >> 0 & 0xff;
 
       Serial.print("Steering: ");
       Serial.println(combined);
+      if (count11 % 2 ==0){
+       
+      mySerial.write(buff, 2); 
+      }
     }
   }
   //}
-  mySerial.write(buff, 2);
   Serial.println("done");
-  Serial.println(buff[0]);
-  Serial.println(buff[1]);
+  Serial.println(int(buff[0]));
+  Serial.println(int(buff[1]));
 
   //}
 }

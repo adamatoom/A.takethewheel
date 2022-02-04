@@ -1,7 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <SoftwareSerial.h>
-#include <PID_v1.h>
 
 #define MYPORT_TX 14
 #define MYPORT_RX 12
@@ -37,7 +36,6 @@ int str0 = 127;
 double Setpoint, Input, Output;
 byte pid = 0;
 
-PID myPID(&Input, &Output, &Setpoint, 7.0 / 400.0, 3.0 / 2000.0, 0, DIRECT);
 void setup()
 {
   // Set your Static IP address
@@ -49,7 +47,7 @@ void setup()
   // Setup serial port
   Serial.begin(115200);
   Serial1.begin(115200);
-  mySerial.begin(38400, SWSERIAL_8N1, MYPORT_RX, MYPORT_TX, false);
+  mySerial.begin(9600, SWSERIAL_8N1, MYPORT_RX, MYPORT_TX, false);
   if (!mySerial)
   {
     Serial.println("NO");
@@ -91,6 +89,7 @@ void setup()
 
 void loop()
 {
+  counter++;
   // put your main code here, to run repeatedly:
 
   int packetSize = UDP.parsePacket();
@@ -118,13 +117,19 @@ void loop()
         Setpoint = (double)rang[4];
         pid = 1;
         
-        // Serial.println(rang[4]);
+         Serial.println(rang[4]);
+         Serial.println(ang[4]);
+         Serial.println(str);
+         Serial.println(int(buff[0]));
+         Serial.println(int(buff[1]));
+         
         break;
       case (byte)1:
         //code to be executed
         output = packet[1];
         // Serial.println((int)output);
         Serial.println("torque");
+        Serial.println(str);
         pid = 0;
         break;
       case (byte)3:
@@ -133,6 +138,9 @@ void loop()
         i = float(packet[2]) / 200000.0;
         d = float(packet[3]) / 2000.0;
         Serial.println("PID");
+        Serial.println(p);
+        Serial.println(i);
+        Serial.println(d);
         break;
       default:
         Serial.println("Invalid Type");
@@ -155,25 +163,23 @@ void loop()
   {
     //      buff[count] = mySerial.read();
     //      count ++;
-    for (int i = 0; i < 2; i++)
-    {
-      buff[i] = mySerial.read();
-    }
+//    for (int i = 0; i < 2; i++)
+//    {
+//      buff[i] = mySerial.read();
+//    }
+    buff[0] = mySerial.read();
+    buff[1] = mySerial.read();
     // Serial.println(" ");
     // Serial.println((int)buff[0]);
     // Serial.println((int)buff[1]);
-    // Serial.println(ang[4] - 5000);
+    // Serial.println(ang[4] - 6000);
     ang[3] = ang[4];
     ang[2] = ang[3];
     ang[1] = ang[2];
     ang[0] = ang[1];
-    ang[4] = buff[0] << 8 | buff[1];
-    if (counter % 10)
-    {
-      Serial.println("rec rang");
-      Serial.println(ang[4]);
-      Setpoint = (double)ang[4];
-    }
+    ang[4] = buff[1] << 8 | buff[0];
+    ang[4] = ang[4] - 6000;
+
   }
   if (type == 0)
   {
@@ -181,10 +187,20 @@ void loop()
   }
   if (type == 0 || type == 1)
   {
-    str = (int)clamp(str0 - 5, str0 + 5, (int)output);
+//    str = (int)clamp(0,255,str + (int)clamp(0.1 * (str0 - output), 0.1 * (output - str0) , (int)output)* 255 / 2 / (255 - (str - 127)*(str - 127)/100));
+    if (str < 220 && str > 35){
+      if (counter % 40 == 0){
+        str = (int)clamp(str0  - 1,str0  + 1,output);   
+      }
+    }else{
+        if (counter % 100 == 0){
+          
+        str = (int)clamp(str0  - 1,str0  + 1,output);
+        }
+      }
   }
   Serial1.write((byte)str);
-  Serial.println((int)str);
+//  Serial.println((int)str);
   str0 = str;
 }
 
@@ -227,9 +243,10 @@ float clamp(float lower, float higher, float input)
 float PID()
 {
   dt = (float)(millis() - time1);
+  time1 = millis();
   P = clamp(-100.0, 100.0, p * ((float)rang[4] - (float)ang[4]));
-  I = clamp(-27.0, 27.0, I + (((float)rang[4] - (float)ang[4]) + (float)rang[0] - (float)ang[0]) * i * dt / 2);
-  D = clamp(-30.0, 30.0, (((float)rang[4] - (float)ang[4]) - ((float)rang[0] - (float)ang[0])) * d / dt);
+  I = clamp(-27.0, 27.0, I + (((float)rang[4] - (float)ang[4]) + (float)rang[3] - (float)ang[3]) * i * dt);
+  D = clamp(-30.0, 30.0, (((float)rang[4] - (float)ang[4]) - ((float)rang[3] - (float)ang[3])) * d / dt);
 
   return P + I + D;
 }
