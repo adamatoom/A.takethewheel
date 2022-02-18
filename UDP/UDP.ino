@@ -2,8 +2,8 @@
 #include <WiFiUdp.h>
 #include <SoftwareSerial.h>
 
-#define MYPORT_TX 14
-#define MYPORT_RX 12
+#define MYPORT_TX 14 //D5
+#define MYPORT_RX 13 //D7
 
 #define WIFI_SSID "Internet"
 #define WIFI_PASS "adam1999"
@@ -23,11 +23,6 @@ int rang[5] = {0, 0, 0, 0, 0};
 float p = 7.0 / 400.0;
 float i = 3.0 / 200000.0;
 float d = 0;
-float P = 0;
-unsigned long time1  = millis();
-float I = 0;
-float D = 0;
-float dt = 1000000;
 char reply[] = "Packet received!";
 int counter = 0;
 int str = 127;
@@ -46,20 +41,11 @@ void setup()
   //  IPAddress subnet(255, 255, 255, 0);
   // Setup serial port
   Serial.begin(115200);
-  Serial1.begin(115200);
-  mySerial.begin(9600, SWSERIAL_8N1, MYPORT_RX, MYPORT_TX, false);
+  mySerial.begin(38400, SWSERIAL_8N1, MYPORT_RX, MYPORT_TX, false);
   if (!mySerial)
   {
     Serial.println("NO");
   }
-  //
-  //  Serial2.begin(115200);
-  //  Serial.println();
-
-  // Configures static IP address
-  //  if (!WiFi.config(local_IP, gateway, subnet)) {
-  //    Serial.println("STA Failed to configure");
-  //  }
 
   // Begin WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -83,8 +69,6 @@ void setup()
   UDP.begin(UDP_PORT);
   //  Serial.print("Listening on UDP port ");
   //  Serial.println(UDP_PORT);
-  analogWriteRange(255);
-  analogWrite(4, 127);
 }
 
 void loop()
@@ -95,6 +79,11 @@ void loop()
   int packetSize = UDP.parsePacket();
   if (packetSize)
   {
+    while (mySerial.available())
+    {
+      //    Serial.println(mySerial.read());
+      mySerial.read();
+    }
     Serial.println("UDP1");
     //    Serial.print("Received packet! Size: ");
     //    Serial.println(packetSize);
@@ -104,149 +93,30 @@ void loop()
       Serial.println("UDP2");
       //      packet[len] = '\0';
       type = packet[0];
+      mySerial.write(type);
       switch (type)
       {
       case (byte)0:
         //code to be executed;
-        rang[3] = rang[4];
-        rang[2] = rang[3];
-        rang[1] = rang[2];
-        rang[0] = rang[1];
-        rang[4] = (packet[2] | packet[1] << 8) - 4000;
-        Serial.println("rang");
-        Setpoint = (double)rang[4];
-        pid = 1;
-        
-         Serial.println(rang[4]);
-         Serial.println(ang[4]);
-         Serial.println(str);
-         Serial.println(int(buff[0]));
-         Serial.println(int(buff[1]));
-         
+        mySerial.write(packet[1]);
+        mySerial.write(packet[2]);
+
         break;
       case (byte)1:
         //code to be executed
-        output = packet[1];
-        // Serial.println((int)output);
-        Serial.println("torque");
-        Serial.println(str);
-        pid = 0;
+        mySerial.write(packet[1]);
         break;
       case (byte)3:
         //code to be executed
-        p = float(packet[1]) / 400.0;
-        i = float(packet[2]) / 200000.0;
-        d = float(packet[3]) / 2000.0;
-        Serial.println("PID");
-        Serial.println(p);
-        Serial.println(i);
-        Serial.println(d);
+        mySerial.write(packet[1]);
+        mySerial.write(packet[2]);
+        mySerial.write(packet[3]);
         break;
       default:
         Serial.println("Invalid Type");
         //code to be executed if all cases are not matched
       }
-      //    str = packet[1];
     }
-    //    Serial.print("Packet received: ");
-    //    for (int i=0;i<len;i++){
-
-    //    }
-
-    //    UDP.beginPacket(UDP.remoteIP(), UDP.remotePort());
-    //    UDP.write(reply);
-    //    UDP.endPacket();
   }
   count = 0;
-  //    Serial.println("Yes");
-  if (mySerial.available() > 1)
-  {
-    //      buff[count] = mySerial.read();
-    //      count ++;
-//    for (int i = 0; i < 2; i++)
-//    {
-//      buff[i] = mySerial.read();
-//    }
-    buff[0] = mySerial.read();
-    buff[1] = mySerial.read();
-    // Serial.println(" ");
-    // Serial.println((int)buff[0]);
-    // Serial.println((int)buff[1]);
-    // Serial.println(ang[4] - 6000);
-    ang[3] = ang[4];
-    ang[2] = ang[3];
-    ang[1] = ang[2];
-    ang[0] = ang[1];
-    ang[4] = buff[1] << 8 | buff[0];
-    ang[4] = ang[4] - 6000;
-
-  }
-  if (type == 0)
-  {
-    output = (byte)clamp((float)0, (float)255, PID() + (float)127);
-  }
-  if (type == 0 || type == 1)
-  {
-//    str = (int)clamp(0,255,str + (int)clamp(0.1 * (str0 - output), 0.1 * (output - str0) , (int)output)* 255 / 2 / (255 - (str - 127)*(str - 127)/100));
-    if (str < 220 && str > 35){
-      if (counter % 40 == 0){
-        str = (int)clamp(str0  - 1,str0  + 1,output);   
-      }
-    }else{
-        if (counter % 100 == 0){
-          
-        str = (int)clamp(str0  - 1,str0  + 1,output);
-        }
-      }
-  }
-  Serial1.write((byte)str);
-//  Serial.println((int)str);
-  str0 = str;
-}
-
-byte clamp(byte lower, byte higher, byte input)
-{
-  if (input < lower)
-  {
-    input = lower;
-  }
-  if (input > higher)
-  {
-    input = higher;
-  }
-  return input;
-}
-int clamp(int lower, int higher, int input)
-{
-  if (input < lower)
-  {
-    input = lower;
-  }
-  if (input > higher)
-  {
-    input = higher;
-  }
-  return input;
-}
-float clamp(float lower, float higher, float input)
-{
-  if (input < lower)
-  {
-    input = lower;
-  }
-  if (input > higher)
-  {
-    input = higher;
-  }
-  return input;
-}
-float PID()
-{
-  dt = (float)(millis() - time1);
-  time1 = millis();
-  P = clamp(-100.0, 100.0, p * ((float)rang[4] - (float)ang[4]));
-  I = clamp(-27.0, 27.0, I + (((float)rang[4] - (float)ang[4]) + (float)rang[3] - (float)ang[3]) * i * dt);
-  D = clamp(-30.0, 30.0, (((float)rang[4] - (float)ang[4]) - ((float)rang[3] - (float)ang[3])) * d / dt);
-
-  return P + I + D;
 }
