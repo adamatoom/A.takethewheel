@@ -18,15 +18,15 @@ float P = 0;
 unsigned long time1 = millis();
 float I = 0;
 float D = 0;
-float p = 7.0 / 400.0;
-float i = 3.0 / 200000.0;
+float p = 7.0 / 100.0;
+float i = 3.0 / 200.0;
 float d = 0;
 float dt = 1000000;
 int counter = 0;
 byte pid = 0;
-int str = 2047;
-int output = 2047;
-int str0 = 2047;
+int str = 0;
+int output = 0;
+int str0 = 0;
 byte count;
 int ang[5] = {0, 0, 0, 0, 0};
 int rang[5] = {0, 0, 0, 0, 0};
@@ -68,29 +68,52 @@ void loop()
 
   if (type == 0)
   {
-    output = (byte)clamp((float)0, (float)4095, PID() + (float)2047);
+    output = (int)clamp((float)(-2047), (float)2047, PID());
   }
   if (type == 0 || type == 1)
   {
-    if (str < 3000 && str > 1095)
+    if (ang[4] >= 0)
     {
-      if (counter % 10 == 0)
+      if (str < 3000 && str > 1095)
       {
-        str = (int)clamp(str0 - 1, str0 + 1, output);
+        if (counter % 1 == 0)
+        {
+          str = (int)clamp(str0 - 4, str0 + 10, output);
+        }
+      }
+      else
+      {
+        if (counter % 2 == 0)
+        {
+
+          str = (int)clamp(str0 - 4, str0 + 10, output);
+        }
       }
     }
     else
     {
-      if (counter % 20 == 0)
+      if (str < 3000 && str > 1095)
       {
+        if (counter % 1 == 0)
+        {
+          str = (int)clamp(str0 - 10, str0 + 4, output);
+        }
+      }
+      else
+      {
+        if (counter % 2 == 0)
+        {
 
-        str = (int)clamp(str0 - 1, str0 + 1, output);
+          str = (int)clamp(str0 - 10, str0 + 4, output);
+        }
       }
     }
   }
-  mcp.setChannelValue(MCP4728_CHANNEL_A, clamp(0, 4095, str));
-  mcp.setChannelValue(MCP4728_CHANNEL_B, clamp(0, 4095, str));
+  mcp.setChannelValue(MCP4728_CHANNEL_A, clamp(0, 4095, 2047 - 1.0 / 5 * str));
+  mcp.setChannelValue(MCP4728_CHANNEL_B, clamp(0, 4095, 2047 + 1.0 / 5 * str));
+
   str0 = str;
+  counter++;
 }
 
 void get_can()
@@ -125,11 +148,10 @@ void get_can()
       ang[2] = ang[3];
       ang[1] = ang[2];
       ang[0] = ang[1];
-      ang[4] = combined;
+      ang[4] = -combined;
 
-      Serial.print("Steering: ");
-      Serial.println(combined);
-      delay(1000);
+      //      Serial.print("Steering: ");
+      //      Serial.println(combined);
       mySerial.write((byte)10);
     }
   }
@@ -140,7 +162,7 @@ void get_data()
   if (mySerial.available())
   {
     type = mySerial.read();
-    Serial.println(type);
+    //    Serial.println(type);
     switch (type)
     {
     case (byte)0:
@@ -158,13 +180,13 @@ void get_data()
       rang[1] = rang[2];
       rang[0] = rang[1];
       rang[4] = ((packet[0] << 8) | packet[1]) - 4000;
-      Serial.println("rang");
-
-      Serial.println(rang[4]);
-      Serial.println(ang[4]);
-      Serial.println(str);
-      Serial.println(int(packet[0]));
-      Serial.println(int(packet[1]));
+      //      Serial.println("rang");
+      //
+      //      Serial.println(rang[4]);
+      //      Serial.println(ang[4]);
+      //      Serial.println(str);
+      //      Serial.println(int(packet[0]));
+      //      Serial.println(int(packet[1]));
 
       break;
     case (byte)1:
@@ -193,16 +215,16 @@ void get_data()
         mySerial.write((byte)10);
       }
       //code to be executed
-      p = float(packet[0]) / 400.0;
-      i = float(packet[1]) / 2000.0;
-      d = float(packet[2]) / 2000.0;
+      p = float(packet[0]) / 100.0;
+      i = float(packet[1]) / 200.0;
+      d = float(packet[2]) / 2.0;
       Serial.println("PID");
       Serial.println(p);
       Serial.println(i);
       Serial.println(d);
       break;
-    default:
-      Serial.println("Invalid Type");
+      //    default:
+      //      Serial.println("Invalid Type");
     }
   }
 }
@@ -248,8 +270,17 @@ float PID()
   dt = (float)(millis() - time1);
   time1 = millis();
   P = clamp(-1600.0, 1600.0, p * ((float)rang[4] - (float)ang[4]));
-  I = clamp(-300.0, 300.0, I + (((float)rang[4] - (float)ang[4]) + (float)rang[3] - (float)ang[3]) * i * dt);
-  D = clamp(-140.0, 140.0, (((float)rang[4] - (float)ang[4]) - ((float)rang[3] - (float)ang[3])) * d / dt);
+  I = clamp(-1400.0, 1400.0, I + (((float)rang[4] - (float)ang[4]) + (float)rang[3] - (float)ang[3]) * i * dt);
+  D = clamp(-2000.0, 2000.0, (((float)rang[4] - (float)ang[4]) - ((float)rang[4] - (float)ang[1])) * d / dt / 4);
+  if (counter % 200 == 0)
+  {
+    Serial.println("D   :  - ");
+    Serial.println(D);
+    Serial.println(rang[4]);
+    Serial.println(ang[4]);
+    Serial.println(rang[1]);
+    Serial.println(ang[1]);
+  }
 
   return P + I + D;
 }
