@@ -13,13 +13,20 @@ SoftwareSerial mySerial(5, 6); // RX, TX
 
 Adafruit_MCP4728 mcp;
 
-byte type = 0;
+int got_can = 0;
+float penalty = 1;
+float penalty1 = 1;
+byte type = 1;
+float rang1 =0;
+float pid1 =0;
+float pidoutput = 0;
 float P = 0;
-unsigned long time1 = millis();
+float P1 = 0;
+unsigned long time1[5] = {millis(), millis(), millis(), millis(), millis()};
 float I = 0;
 float D = 0;
-float p = 7.0 / 100.0;
-float i = 3.0 / 200.0;
+float p = 20.0 / 100.0;
+float i = 15.0 / 200.0;
 float d = 0;
 float dt = 1000000;
 int counter = 0;
@@ -35,21 +42,24 @@ char buffer[456];
 unsigned char packet[255];
 int count11 = 0;
 signed int combined = 0;
+signed int w_spd = 0;
+float rate[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void setup(void)
 {
   Serial.begin(115200);
-  mySerial.begin(38400);
+  mySerial.setTimeout(1);
+  mySerial.begin(19200);
 
   if (Canbus.init(CANSPEED_500)) /* Initialise MCP2515 CAN controller at the specified speed */
   {
-    Serial.println("CAN Init ok");
+   Serial.println("CAN Init ok");
   }
   else
   {
     Serial.println("Can't init CAN");
   }
-  Serial.println("Adafruit MCP4728 test!");
+ Serial.println("Adafruit MCP4728 test!");
 
   if (!mcp.begin())
   {
@@ -64,51 +74,13 @@ void setup(void)
 void loop()
 {
   get_data();
-  get_can();
-
-  if (type == 0)
+  got_can = get_can();
+  if (type == 0 && got_can == 1)
   {
-    output = (int)clamp((float)(-2047), (float)2047, PID());
+    pidoutput = PID();
+    output = (int)clamp((float)(-2047), (float)2047, PID1(clamp((float)(-90), (float)90, pidoutput)));
   }
-  if (type == 0 || type == 1)
-  {
-    if (ang[4] >= 0)
-    {
-      if (str < 3000 && str > 1095)
-      {
-        if (counter % 1 == 0)
-        {
-          str = (int)clamp(str0 - 4, str0 + 10, output);
-        }
-      }
-      else
-      {
-        if (counter % 2 == 0)
-        {
-
-          str = (int)clamp(str0 - 4, str0 + 10, output);
-        }
-      }
-    }
-    else
-    {
-      if (str < 3000 && str > 1095)
-      {
-        if (counter % 1 == 0)
-        {
-          str = (int)clamp(str0 - 10, str0 + 4, output);
-        }
-      }
-      else
-      {
-        if (counter % 2 == 0)
-        {
-
-          str = (int)clamp(str0 - 10, str0 + 4, output);
-        }
-      }
-    }
-  }
+  str = clamp((-2047), 2047, clamp(str0-20,str0+20,output));
   mcp.setChannelValue(MCP4728_CHANNEL_A, clamp(0, 4095, 2047 - 1.0 / 5 * str));
   mcp.setChannelValue(MCP4728_CHANNEL_B, clamp(0, 4095, 2047 + 1.0 / 5 * str));
 
@@ -116,7 +88,7 @@ void loop()
   counter++;
 }
 
-void get_can()
+int get_can()
 {
   tCAN message;
 
@@ -133,28 +105,64 @@ void get_can()
   message.data[7] = 0x00;
 
   mcp2515_bit_modify(CANCTRL, (1 << REQOP2) | (1 << REQOP1) | (1 << REQOP0), 0);
-  if (count11 % 10 == 0)
-  {
-    mcp2515_send_message(&message);
-  }
   count11++;
   if (mcp2515_get_message(&message))
-  {
+  {if ((message.id == 0x4B0)) // Check message is the reply and its the right PID
+    {
+      /* Details from http://en.wikipedia.org/wiki/OBD-II_PIDs */
+      w_spd = message.data[1] << 8 | message.data[0];
+      w_spd = w_spd / 10.0;
+
+      if (w_spd < 1){
+       
+      penalty1= 1; 
+      }else{
+        
+      penalty1 = 40.0/(80.0 + w_spd);
+      }
+      penalty1 = 1;
+
+      
+    }
     if ((message.id == 0x2b0)) // Check message is the reply and its the right PID
     {
       /* Details from http://en.wikipedia.org/wiki/OBD-II_PIDs */
       combined = message.data[1] << 8 | message.data[0];
-      ang[3] = ang[4];
-      ang[2] = ang[3];
-      ang[1] = ang[2];
+      
+      
       ang[0] = ang[1];
+      ang[1] = ang[2];
+      ang[2] = ang[3];
+      ang[3] = ang[4];
       ang[4] = -combined;
+      
+      rate[0] = rate[1];
+      rate[1] = rate[2];
+      rate[2] = rate[3];
+      rate[3] = rate[4];
+      rate[4] = rate[5];
+      rate[5] = rate[6];
+      rate[6] = rate[7];
+      rate[7] = rate[8];
+      rate[8] = rate[9];
+      rate[9] = rate[10];
+      if (ang[4] >= ang[3]){
+      rate[10] = message.data[2];  
+      }else{
+      rate[10] = -message.data[2];    
+      }
 
-      //      Serial.print("Steering: ");
-      //      Serial.println(combined);
+    
+      time1[0] = time1[1];
+      time1[1] = time1[2];
+      time1[2] = time1[3];
+      time1[3] = time1[4];
+      time1[4] = millis();
       mySerial.write((byte)10);
+      return 1;
     }
   }
+  return 0;
 }
 
 void get_data()
@@ -162,7 +170,6 @@ void get_data()
   if (mySerial.available())
   {
     type = mySerial.read();
-    //    Serial.println(type);
     switch (type)
     {
     case (byte)0:
@@ -175,18 +182,11 @@ void get_data()
         mySerial.write((byte)10);
       }
       //code to be executed;
-      rang[3] = rang[4];
-      rang[2] = rang[3];
-      rang[1] = rang[2];
       rang[0] = rang[1];
+      rang[1] = rang[2];
+      rang[2] = rang[3];
+      rang[3] = rang[4];
       rang[4] = ((packet[0] << 8) | packet[1]) - 4000;
-      //      Serial.println("rang");
-      //
-      //      Serial.println(rang[4]);
-      //      Serial.println(ang[4]);
-      //      Serial.println(str);
-      //      Serial.println(int(packet[0]));
-      //      Serial.println(int(packet[1]));
 
       break;
     case (byte)1:
@@ -200,9 +200,6 @@ void get_data()
       }
       //code to be executed
       output = ((int)packet[0] - 127) * 16;
-      // Serial.println((int)output);
-      Serial.println("torque");
-      Serial.println(str);
       pid = 0;
       break;
     case (byte)3:
@@ -223,8 +220,6 @@ void get_data()
       Serial.println(i);
       Serial.println(d);
       break;
-      //    default:
-      //      Serial.println("Invalid Type");
     }
   }
 }
@@ -267,20 +262,21 @@ float clamp(float lower, float higher, float input)
 }
 float PID()
 {
-  dt = (float)(millis() - time1);
-  time1 = millis();
-  P = clamp(-1600.0, 1600.0, p * ((float)rang[4] - (float)ang[4]));
-  I = clamp(-1400.0, 1400.0, I + (((float)rang[4] - (float)ang[4]) + (float)rang[3] - (float)ang[3]) * i * dt);
-  D = clamp(-2000.0, 2000.0, (((float)rang[4] - (float)ang[4]) - ((float)rang[4] - (float)ang[1])) * d / dt / 4);
+  dt = (float)(time1[4] - time1[3]);
+  rang1 = clamp(rang1 - 15.0,rang1 + 15.0,rang[4]);
+  P1 = clamp((float)-15.0, (float)15.0, 1 / 10.0 * ((float)rang1 - (float)ang[4]));
+  float D1 = clamp((float)-20.0, (float)10.0,5.0* (ang[4] - ang[0])/((float)time1[4]-(float)time1[0]));
   if (counter % 200 == 0)
   {
-    Serial.println("D   :  - ");
-    Serial.println(D);
-    Serial.println(rang[4]);
-    Serial.println(ang[4]);
-    Serial.println(rang[1]);
-    Serial.println(ang[1]);
   }
+  return P1 + D1;
+}
+float PID1(float pid)
+{
+  pid1 = clamp(pid1 - 0.5,pid1 + 0.5,pid);
+  float rate1 = (rate[10] * 10.0 + rate[9] * 5.0 + rate[8] * 2.5 + rate[7] * 1.75 + rate[6] * 0.825 + rate[5] * 0.4125 + rate[4] * 0.20625 + rate[3] * 0.103125)/20.8;
 
-  return P + I + D;
+  I = clamp(-2000.0, 2000.0, I + ((pid - (rate1) )) * i*penalty1 * ((float)(time1[4] - time1[3])));
+
+  return (I);
 }

@@ -41,7 +41,7 @@ void setup()
   //  IPAddress subnet(255, 255, 255, 0);
   // Setup serial port
   Serial.begin(115200);
-  mySerial.begin(38400, SWSERIAL_8N1, MYPORT_RX, MYPORT_TX, false);
+  mySerial.begin(19200, SWSERIAL_8N1, MYPORT_RX, MYPORT_TX, false);
   if (!mySerial)
   {
     Serial.println("NO");
@@ -79,11 +79,6 @@ void loop()
   int packetSize = UDP.parsePacket();
   if (packetSize)
   {
-    while (mySerial.available())
-    {
-      //    Serial.println(mySerial.read());
-      mySerial.read();
-    }
     Serial.println("UDP1");
     //    Serial.print("Received packet! Size: ");
     //    Serial.println(packetSize);
@@ -94,6 +89,7 @@ void loop()
       //      packet[len] = '\0';
       type = packet[0];
       mySerial.write(type);
+      Serial.println((int)type);
       switch (type)
       {
       case (byte)0:
