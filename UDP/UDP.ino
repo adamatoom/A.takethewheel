@@ -30,6 +30,8 @@ byte output = 127;
 int str0 = 127;
 double Setpoint, Input, Output;
 byte pid = 0;
+byte ready1 = 0;
+int len = 0;
 
 void setup()
 {
@@ -41,7 +43,7 @@ void setup()
   //  IPAddress subnet(255, 255, 255, 0);
   // Setup serial port
   Serial.begin(115200);
-  mySerial.begin(19200, SWSERIAL_8N1, MYPORT_RX, MYPORT_TX, false);
+  mySerial.begin(9600, SWSERIAL_8N1, MYPORT_RX, MYPORT_TX, false);
   if (!mySerial)
   {
     Serial.println("NO");
@@ -69,10 +71,24 @@ void setup()
   UDP.begin(UDP_PORT);
   //  Serial.print("Listening on UDP port ");
   //  Serial.println(UDP_PORT);
+  while (ready1 != 1)
+  {
+    if (mySerial.available())
+    {
+      ready1 = mySerial.read();
+    }
+  }
 }
 
 void loop()
 {
+  if (!ready1)
+  {
+    if (mySerial.available())
+    {
+      ready1 = mySerial.read();
+    }
+  }
   counter++;
   // put your main code here, to run repeatedly:
 
@@ -80,38 +96,37 @@ void loop()
   if (packetSize)
   {
     Serial.println("UDP1");
-    //    Serial.print("Received packet! Size: ");
-    //    Serial.println(packetSize);
-    int len = UDP.read(packet, 255);
-    if (len > 0)
+    len = UDP.read(packet, 255);
+  }
+  if (len > 0 && ready1)
+  {
+    len = 0;
+    ready1 = 0;
+    Serial.println("UDP2");
+    type = packet[0];
+    mySerial.write(type);
+    Serial.println((int)type);
+    switch (type)
     {
-      Serial.println("UDP2");
-      //      packet[len] = '\0';
-      type = packet[0];
-      mySerial.write(type);
-      Serial.println((int)type);
-      switch (type)
-      {
-      case (byte)0:
-        //code to be executed;
-        mySerial.write(packet[1]);
-        mySerial.write(packet[2]);
+    case (byte)0:
+      //code to be executed;
+      mySerial.write(packet[1]);
+      mySerial.write(packet[2]);
 
-        break;
-      case (byte)1:
-        //code to be executed
-        mySerial.write(packet[1]);
-        break;
-      case (byte)3:
-        //code to be executed
-        mySerial.write(packet[1]);
-        mySerial.write(packet[2]);
-        mySerial.write(packet[3]);
-        break;
-      default:
-        Serial.println("Invalid Type");
-        //code to be executed if all cases are not matched
-      }
+      break;
+    case (byte)1:
+      //code to be executed
+      mySerial.write(packet[1]);
+      break;
+    case (byte)3:
+      //code to be executed
+      mySerial.write(packet[1]);
+      mySerial.write(packet[2]);
+      mySerial.write(packet[3]);
+      break;
+    default:
+      Serial.println("Invalid Type");
+      //code to be executed if all cases are not matched
     }
   }
   count = 0;
